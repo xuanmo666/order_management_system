@@ -138,4 +138,19 @@ public class InventoryPanel extends JPanel {
     public int getSelectedRow() {
         return inventoryTable.getSelectedRow();
     }
+    /**
+     * 获取指定行的数据（供Controller使用）
+     * @param row 行号
+     * @return 该行的数据数组
+     */
+    public Object[] getRowData(int row) {
+        int columnCount = tableModel.getColumnCount();
+        Object[] rowData = new Object[columnCount];
+
+        for (int i = 0; i < columnCount; i++) {
+            rowData[i] = tableModel.getValueAt(row, i);
+        }
+
+        return rowData;
+    }
 }

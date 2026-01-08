@@ -299,4 +299,20 @@ public class OrderService {
             throw new ValidationException("订单ID已存在: " + order.getOrderId());
         }
     }
+
+    public OrderRepository getOrderRepository() {
+        return orderRepository;
+    }
+
+    public void setOrderRepository(OrderRepository orderRepository) {
+        this.orderRepository = orderRepository;
+    }
+
+    public ProductRepository getProductRepository() {
+        return productRepository;
+    }
+
+    public void setProductRepository(ProductRepository productRepository) {
+        this.productRepository = productRepository;
+    }
 }

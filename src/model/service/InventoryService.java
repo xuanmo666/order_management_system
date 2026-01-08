@@ -164,4 +164,12 @@ public class InventoryService {
             throw new ValidationException("库存数量不能超过最大容量");
         }
     }
+
+    public InventoryRepository getInventoryRepository() {
+        return inventoryRepository;
+    }
+
+    public void setInventoryRepository(InventoryRepository inventoryRepository) {
+        this.inventoryRepository = inventoryRepository;
+    }
 }

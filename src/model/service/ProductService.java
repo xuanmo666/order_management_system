@@ -270,4 +270,12 @@ public class ProductService implements ProductServiceInterface {
     public int getProductCount() {
         return productRepository.count();
     }
+
+    public ProductRepository getProductRepository() {
+        return productRepository;
+    }
+
+    public void setProductRepository(ProductRepository productRepository) {
+        this.productRepository = productRepository;
+    }
 }

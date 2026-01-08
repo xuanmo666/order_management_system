@@ -11,7 +11,7 @@ import java.util.List;
  * 商品业务逻辑服务类
  * 负责商品的业务逻辑处理，包括验证、库存管理等
  */
-public class ProductService {
+public class ProductService implements ProductServiceInterface {
     private ProductRepository productRepository;
 
     public ProductService() {
@@ -21,6 +21,7 @@ public class ProductService {
     /**
      * 添加商品
      */
+    @Override
     public void addProduct(Product product) throws ValidationException {
         // 输入验证
         if (product == null) {
@@ -58,6 +59,7 @@ public class ProductService {
     /**
      * 更新商品信息
      */
+    @Override
     public void updateProduct(Product product) throws ValidationException {
         if (product == null) {
             throw new ValidationException("商品不能为空");
@@ -87,6 +89,7 @@ public class ProductService {
     /**
      * 删除商品
      */
+    @Override
     public void deleteProduct(String productId) throws ValidationException {
         if (!ValidationUtil.isNotBlank(productId)) {
             throw new ValidationException("商品ID不能为空");
@@ -107,6 +110,7 @@ public class ProductService {
     /**
      * 根据ID获取商品
      */
+    @Override
     public Product getProductById(String productId) throws ValidationException {
         if (!ValidationUtil.isNotBlank(productId)) {
             throw new ValidationException("商品ID不能为空");
@@ -123,6 +127,7 @@ public class ProductService {
     /**
      * 获取所有商品
      */
+    @Override
     public List<Product> getAllProducts() {
         return productRepository.findAll();
     }
@@ -130,6 +135,7 @@ public class ProductService {
     /**
      * 搜索商品
      */
+    @Override
     public List<Product> searchProducts(String keyword, String category,
                                         Double minPrice, Double maxPrice) {
         List<Product> result = productRepository.findAll();
@@ -173,6 +179,7 @@ public class ProductService {
     /**
      * 商品入库（增加库存）
      */
+    @Override
     public void stockIn(String productId, int amount) throws ValidationException {
         Product product = getProductById(productId);
 
@@ -187,6 +194,7 @@ public class ProductService {
     /**
      * 商品出库（减少库存）
      */
+    @Override
     public boolean stockOut(String productId, int amount) throws ValidationException {
         Product product = getProductById(productId);
 
@@ -206,6 +214,7 @@ public class ProductService {
     /**
      * 获取分类统计
      */
+    @Override
     public java.util.Map<String, Integer> getCategoryStatistics() {
         java.util.Map<String, Integer> stats = new java.util.HashMap<>();
         List<Product> products = productRepository.findAll();
@@ -221,6 +230,7 @@ public class ProductService {
     /**
      * 获取低库存商品
      */
+    @Override
     public List<Product> getLowStockProducts(int threshold) {
         return productRepository.getLowStockProducts(threshold);
     }
@@ -228,6 +238,7 @@ public class ProductService {
     /**
      * 按价格排序商品
      */
+    @Override
     public List<Product> getProductsSortedByPrice(boolean ascending) {
         List<Product> products = productRepository.findAll();
 
@@ -249,5 +260,14 @@ public class ProductService {
         }
 
         return products;
+    }
+    @Override
+    public boolean productExists(String productId) {
+        return productRepository.exists(productId);
+    }
+
+    @Override
+    public int getProductCount() {
+        return productRepository.count();
     }
 }

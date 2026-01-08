@@ -3,18 +3,20 @@ package controller;
 import view.InventoryPanel;
 import model.service.InventoryService;
 import model.service.ProductService;
+import model.entity.Inventory;
+import exception.ValidationException;
+import exception.BusinessException;
+
+import javax.swing.*;
 
 /**
- * 库存管理控制器 - 处理库存相关的业务逻辑和界面交互
+ * 库存管理控制器
  */
 public class InventoryController {
-    private InventoryPanel inventoryPanel;      // 库存管理界面
-    private InventoryService inventoryService;  // 库存业务服务
-    private ProductService productService;      // 商品业务服务
+    private InventoryPanel inventoryPanel;
+    private InventoryService inventoryService;
+    private ProductService productService;
 
-    /**
-     * 构造函数
-     */
     public InventoryController(InventoryPanel inventoryPanel,
                                InventoryService inventoryService,
                                ProductService productService) {
@@ -28,96 +30,161 @@ public class InventoryController {
      * 设置界面事件监听器
      */
     private void setupEventListeners() {
-        // 设置库存界面上所有按钮的事件监听器
+        inventoryPanel.setActionListener(new InventoryPanel.InventoryActionListener() {
+            @Override
+            public void onLowStockWarning() {
+                handleLowStockWarning();
+            }
+
+            @Override
+            public void onAdjustInventory(int selectedRow) {
+                handleAdjustInventory(selectedRow);
+            }
+
+            @Override
+            public void onRefresh() {
+                loadInventory();
+            }
+        });
     }
 
     /**
      * 加载库存数据到界面
      */
     public void loadInventory() {
-        // 调用inventoryService获取所有库存记录
-        // 将数据设置到inventoryPanel的表格中
-        // 标记低库存商品
+        try {
+            inventoryPanel.clearTable();
+
+            var inventoryList = inventoryService.getAllInventory();
+
+            for (Inventory inventory : inventoryList) {
+                // 获取商品名称
+                String productName = "未知";
+                try {
+                    var product = productService.getProductById(inventory.getProductId());
+                    productName = product.getName();
+                } catch (Exception e) {
+                    // 商品可能已被删除
+                }
+
+                // 判断库存状态
+                String status = "正常";
+                if (inventory.needsWarning()) {
+                    status = "低库存预警";
+                }
+
+                Object[] rowData = {
+                        inventory.getProductId(),
+                        productName,
+                        inventory.getQuantity(),
+                        inventory.getMinThreshold(),
+                        status
+                };
+                inventoryPanel.addRowToTable(rowData);
+            }
+
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(null, "加载库存失败: " + e.getMessage());
+        }
     }
 
     /**
      * 处理库存调整请求
-     * @param productId 商品ID
-     * @param quantity 调整数量
-     * @param operation 操作类型（in/out/set）
-     * @param reason 调整原因
      */
-    public void handleAdjustInventory(String productId, int quantity,
-                                      String operation, String reason) {
-        // 调用inventoryService.adjustInventory方法
-        // 处理库存不足等异常情况
-        // 更新界面显示
+    private void handleAdjustInventory(int selectedRow) {
+        if (selectedRow < 0) {
+            JOptionPane.showMessageDialog(null, "请选择要调整的库存记录");
+            return;
+        }
+
+        try {
+            // 获取库存信息
+            Object[] rowData = inventoryPanel.getRowData(selectedRow);
+            String productId = (String) rowData[0];
+
+            // 调整库存对话框
+            JPanel panel = new JPanel(new java.awt.GridLayout(3, 2, 5, 5));
+
+            JLabel productIdLabel = new JLabel(productId);
+            JComboBox<String> operationCombo = new JComboBox<>(new String[]{"入库", "出库"});
+            JTextField quantityField = new JTextField("1", 10);
+
+            panel.add(new JLabel("商品ID:"));
+            panel.add(productIdLabel);
+            panel.add(new JLabel("操作类型:"));
+            panel.add(operationCombo);
+            panel.add(new JLabel("数量:"));
+            panel.add(quantityField);
+
+            int result = JOptionPane.showConfirmDialog(
+                    null, panel, "调整库存",
+                    JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+
+            if (result == JOptionPane.OK_OPTION) {
+                String operation = operationCombo.getSelectedItem().toString();
+                int quantity = Integer.parseInt(quantityField.getText().trim());
+                String operationCode = "入库".equals(operation) ? "in" : "out";
+
+                // 执行库存调整
+                inventoryService.adjustInventory(productId, quantity, operationCode);
+
+                // 刷新界面
+                loadInventory();
+                JOptionPane.showMessageDialog(null, "库存调整成功");
+            }
+
+        } catch (NumberFormatException e) {
+            JOptionPane.showMessageDialog(null, "请输入正确的数量");
+        } catch (ValidationException e) {
+            JOptionPane.showMessageDialog(null, "调整库存失败: " + e.getMessage());
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(null, "调整库存时发生错误: " + e.getMessage());
+        }
+
     }
 
     /**
      * 处理低库存预警请求
      */
-    public void handleLowStockWarning() {
-        // 调用inventoryService.getLowStockItems方法
-        // 在界面显示预警信息
-    }
+    private void handleLowStockWarning() {
+        try {
+            var lowStockItems = inventoryService.getLowStockItems();
 
-    /**
-     * 处理库存盘点请求
-     */
-    public void handleInventoryCheck() {
-        // 调用inventoryService.performInventoryCheck方法
-        // 显示盘点报告
-    }
+            if (lowStockItems.isEmpty()) {
+                JOptionPane.showMessageDialog(null, "当前没有低库存商品");
+                return;
+            }
 
-    /**
-     * 处理库存统计请求
-     */
-    public void handleGetInventoryStatistics() {
-        // 调用inventoryService.getInventoryStatistics方法
-        // 在界面显示统计信息
-    }
+            StringBuilder warningMsg = new StringBuilder("低库存预警商品:\n\n");
 
-    /**
-     * 处理库存调拨请求
-     * @param fromProductId 源商品ID
-     * @param toProductId 目标商品ID
-     * @param quantity 调拨数量
-     * @param reason 调拨原因
-     */
-    public void handleTransferInventory(String fromProductId, String toProductId,
-                                        int quantity, String reason) {
-        // 调用inventoryService.transferInventory方法
-        // 处理库存不足等异常
-        // 更新界面显示
-    }
+            for (Inventory inventory : lowStockItems) {
+                String productName = "未知";
+                try {
+                    var product = productService.getProductById(inventory.getProductId());
+                    productName = product.getName();
+                } catch (Exception e) {
+                    // 商品可能已被删除
+                }
 
-    /**
-     * 处理库存阈值设置请求
-     * @param productId 商品ID
-     * @param minThreshold 最小库存阈值
-     * @param maxCapacity 最大库存容量
-     */
-    public void handleSetInventoryThreshold(String productId, int minThreshold,
-                                            int maxCapacity) {
-        // 调用inventoryService.setInventoryThreshold方法
-        // 验证阈值设置是否合理
-        // 更新界面显示
+                warningMsg.append("商品: ").append(productName)
+                        .append(" (").append(inventory.getProductId()).append(")\n")
+                        .append("当前库存: ").append(inventory.getQuantity())
+                        .append(", 阈值: ").append(inventory.getMinThreshold())
+                        .append("\n\n");
+            }
+
+            JOptionPane.showMessageDialog(null, warningMsg.toString(),
+                    "低库存预警", JOptionPane.WARNING_MESSAGE);
+
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(null, "获取低库存信息失败: " + e.getMessage());
+        }
     }
 
     /**
      * 刷新库存界面
      */
     public void refreshView() {
-        // 重新加载库存数据并更新界面
-    }
-
-    /**
-     * 获取商品库存信息
-     * @param productId 商品ID
-     */
-    public void getProductInventoryInfo(String productId) {
-        // 调用inventoryService.getInventoryByProductId方法
-        // 在界面显示库存详情
+        loadInventory();
     }
 }

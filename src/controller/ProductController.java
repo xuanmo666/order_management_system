@@ -3,20 +3,18 @@ package controller;
 import view.ProductPanel;
 import model.service.ProductService;
 import model.entity.Product;
+import exception.ValidationException;
+import util.IdGenerator;
+
+import javax.swing.*;
 
 /**
  * 商品管理控制器 - 处理商品相关的业务逻辑和界面交互
- * 作为view.ProductPanel和model.service.ProductService之间的桥梁
  */
 public class ProductController {
-    private ProductPanel productPanel;      // 商品管理界面
-    private ProductService productService;  // 商品业务服务
+    private ProductPanel productPanel;
+    private ProductService productService;
 
-    /**
-     * 构造函数
-     * @param productPanel 商品管理界面
-     * @param productService 商品服务
-     */
     public ProductController(ProductPanel productPanel, ProductService productService) {
         this.productPanel = productPanel;
         this.productService = productService;
@@ -27,91 +25,220 @@ public class ProductController {
      * 设置界面事件监听器
      */
     private void setupEventListeners() {
-        // 设置商品界面上所有按钮的事件监听器
-        // 这些监听器会调用本控制器的相应方法
+        productPanel.setActionListener(new ProductPanel.ProductActionListener() {
+            @Override
+            public void onAddProduct() {
+                handleAddProduct();
+            }
+
+            @Override
+            public void onEditProduct(int selectedRow) {
+                handleEditProduct(selectedRow);
+            }
+
+            @Override
+            public void onDeleteProduct(int selectedRow) {
+                handleDeleteProduct(selectedRow);
+            }
+
+            @Override
+            public void onRefresh() {
+                loadProducts();
+            }
+        });
     }
 
     /**
      * 加载商品数据到界面
      */
     public void loadProducts() {
-        // 调用productService获取所有商品
-        // 将数据设置到productPanel的表格中
-    }
+        try {
+            productPanel.clearTable();
 
-    /**
-     * 处理商品搜索请求
-     * @param keyword 搜索关键词
-     * @param category 商品分类
-     * @param minPrice 最低价格
-     * @param maxPrice 最高价格
-     */
-    public void handleSearchProducts(String keyword, String category,
-                                     Double minPrice, Double maxPrice) {
-        // 调用productService搜索商品
-        // 更新界面显示结果
+            // 获取所有商品
+            var products = productService.getAllProducts();
+
+            // 添加到表格
+            for (Product product : products) {
+                Object[] rowData = {
+                        product.getId(),
+                        product.getName(),
+                        product.getPrice(),
+                        product.getCategory(),
+                        product.getStock()
+                };
+                productPanel.addRowToTable(rowData);
+            }
+
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(null, "加载商品失败: " + e.getMessage());
+        }
     }
 
     /**
      * 处理添加商品请求
-     * @param product 要添加的商品对象
      */
-    public void handleAddProduct(Product product) {
-        // 调用productService添加商品
-        // 处理成功或失败，更新界面
+    private void handleAddProduct() {
+        // 显示添加对话框
+        JPanel panel = new JPanel(new java.awt.GridLayout(4, 2, 5, 5));
+
+        JTextField nameField = new JTextField(10);
+        JTextField priceField = new JTextField(10);
+        JTextField categoryField = new JTextField(10);
+
+        panel.add(new JLabel("商品名称:"));
+        panel.add(nameField);
+        panel.add(new JLabel("价格:"));
+        panel.add(priceField);
+        panel.add(new JLabel("分类:"));
+        panel.add(categoryField);
+        panel.add(new JLabel("初始库存:"));
+        JTextField stockField = new JTextField("0", 10);
+        panel.add(stockField);
+
+        int result = JOptionPane.showConfirmDialog(
+                null, panel, "添加商品",
+                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+
+        if (result == JOptionPane.OK_OPTION) {
+            try {
+                // 验证输入
+                String name = nameField.getText().trim();
+                String priceText = priceField.getText().trim();
+                String category = categoryField.getText().trim();
+                String stockText = stockField.getText().trim();
+
+                if (name.isEmpty() || priceText.isEmpty() || category.isEmpty()) {
+                    JOptionPane.showMessageDialog(null, "请填写所有必填字段");
+                    return;
+                }
+
+                double price = Double.parseDouble(priceText);
+                int stock = Integer.parseInt(stockText);
+
+                if (price <= 0) {
+                    JOptionPane.showMessageDialog(null, "价格必须大于0");
+                    return;
+                }
+
+                // 创建商品对象
+                Product product = new Product();
+                product.setId(IdGenerator.generateProductId());
+                product.setName(name);
+                product.setPrice(price);
+                product.setCategory(category);
+                product.setStock(stock);
+
+                // 添加商品
+                productService.addProduct(product);
+
+                // 刷新界面
+                loadProducts();
+                JOptionPane.showMessageDialog(null, "添加商品成功");
+
+            } catch (NumberFormatException e) {
+                JOptionPane.showMessageDialog(null, "请输入正确的数字格式");
+            } catch (ValidationException e) {
+                JOptionPane.showMessageDialog(null, "添加失败: " + e.getMessage());
+            } catch (Exception e) {
+                JOptionPane.showMessageDialog(null, "添加商品时发生错误: " + e.getMessage());
+            }
+        }
     }
 
     /**
      * 处理编辑商品请求
-     * @param productId 商品ID
-     * @param updatedProduct 更新后的商品对象
      */
-    public void handleUpdateProduct(String productId, Product updatedProduct) {
-        // 调用productService更新商品
-        // 处理结果，更新界面
+    private void handleEditProduct(int selectedRow) {
+        if (selectedRow < 0) {
+            JOptionPane.showMessageDialog(null, "请选择要编辑的商品");
+            return;
+        }
+
+        try {
+            // 获取当前商品信息
+            Object[] rowData = productPanel.getRowData(selectedRow);
+            String productId = (String) rowData[0];
+
+            // 获取商品对象
+            Product product = productService.getProductById(productId);
+
+            // 显示编辑对话框
+            JPanel panel = new JPanel(new java.awt.GridLayout(4, 2, 5, 5));
+
+            JLabel idLabel = new JLabel(productId);
+            JTextField nameField = new JTextField(product.getName());
+            JTextField priceField = new JTextField(String.valueOf(product.getPrice()));
+            JTextField categoryField = new JTextField(product.getCategory());
+
+            panel.add(new JLabel("商品ID:"));
+            panel.add(idLabel);
+            panel.add(new JLabel("商品名称:"));
+            panel.add(nameField);
+            panel.add(new JLabel("价格:"));
+            panel.add(priceField);
+            panel.add(new JLabel("分类:"));
+            panel.add(categoryField);
+
+            int result = JOptionPane.showConfirmDialog(
+                    null, panel, "编辑商品",
+                    JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+
+            if (result == JOptionPane.OK_OPTION) {
+                // 更新商品信息
+                product.setName(nameField.getText().trim());
+                product.setPrice(Double.parseDouble(priceField.getText().trim()));
+                product.setCategory(categoryField.getText().trim());
+
+                productService.updateProduct(product);
+
+                // 刷新界面
+                loadProducts();
+                JOptionPane.showMessageDialog(null, "更新商品成功");
+            }
+
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(null, "编辑失败: " + e.getMessage());
+        }
     }
 
     /**
      * 处理删除商品请求
-     * @param productId 商品ID
      */
-    public void handleDeleteProduct(String productId) {
-        // 调用productService删除商品
-        // 确认删除并更新界面
-    }
+    private void handleDeleteProduct(int selectedRow) {
+        if (selectedRow < 0) {
+            JOptionPane.showMessageDialog(null, "请选择要删除的商品");
+            return;
+        }
 
-    /**
-     * 处理商品入库请求
-     * @param productId 商品ID
-     * @param quantity 入库数量
-     */
-    public void handleStockIn(String productId, int quantity) {
-        // 调用productService.stockIn方法
-        // 更新库存显示
-    }
+        try {
+            // 确认删除
+            int confirm = JOptionPane.showConfirmDialog(
+                    null, "确定要删除这个商品吗？",
+                    "确认删除", JOptionPane.YES_NO_OPTION);
 
-    /**
-     * 处理商品出库请求
-     * @param productId 商品ID
-     * @param quantity 出库数量
-     */
-    public void handleStockOut(String productId, int quantity) {
-        // 调用productService.stockOut方法
-        // 检查库存是否足够并处理结果
-    }
+            if (confirm == JOptionPane.YES_OPTION) {
+                // 获取商品ID
+                Object[] rowData = productPanel.getRowData(selectedRow);
+                String productId = (String) rowData[0];
 
-    /**
-     * 获取商品统计信息
-     */
-    public void handleGetProductStatistics() {
-        // 调用productService.getCategoryStatistics等方法
-        // 在界面显示统计结果
+                // 删除商品
+                productService.deleteProduct(productId);
+
+                // 刷新界面
+                loadProducts();
+                JOptionPane.showMessageDialog(null, "删除商品成功");
+            }
+
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(null, "删除失败: " + e.getMessage());
+        }
     }
 
     /**
      * 刷新商品界面
      */
     public void refreshView() {
-        // 重新加载商品数据并更新界面
+        loadProducts();
     }
 }

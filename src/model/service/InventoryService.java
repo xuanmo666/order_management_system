@@ -57,8 +57,6 @@ public class InventoryService implements InventoryServiceInterface {
         if (!success) {
             throw new ValidationException("调整库存失败");
         }
-
-        // 关键修改：同步更新商品实体的库存
         syncProductStock(productId, inventory.getQuantity());
     }
 

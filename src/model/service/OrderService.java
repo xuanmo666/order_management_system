@@ -21,14 +21,12 @@ public class OrderService implements OrderServiceInterface {
     private ProductRepository productRepository;
     private static OrderService instance;
 
-    // 新增：引用InventoryService用于库存同步
+    // 引用InventoryService用于库存同步
     private InventoryService inventoryService;
 
     private OrderService() {
         this.orderRepository = new OrderRepository();
-        // 关键修复：使用ProductService的Repository实例
         this.productRepository = ProductService.getInstance().getProductRepository();
-        // 新增：获取InventoryService实例
         this.inventoryService = InventoryService.getInstance();
     }
 
@@ -40,7 +38,7 @@ public class OrderService implements OrderServiceInterface {
     }
 
     /**
-     * 创建新订单 - 修复关键：使用同一个Repository实例，并同步库存
+     * 创建新订单
      */
     @Override
     public Order createOrder(Order order) throws ValidationException, BusinessException {
@@ -68,7 +66,6 @@ public class OrderService implements OrderServiceInterface {
             product.setStock(product.getStock() - quantity);
             productRepository.update(product);
 
-            // 关键修复：同步扣减库存记录
             syncInventoryDecrease(productId, quantity);
 
             // 设置订单项的商品名称和价格（如果未设置）
@@ -152,8 +149,6 @@ public class OrderService implements OrderServiceInterface {
                 // 恢复商品库存
                 product.setStock(product.getStock() + quantity);
                 productRepository.update(product);
-
-                // 关键修复：同步恢复库存记录
                 syncInventoryIncrease(productId, quantity);
             }
         }

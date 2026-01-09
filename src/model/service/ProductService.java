@@ -15,12 +15,10 @@ public class ProductService implements ProductServiceInterface {
     private ProductRepository productRepository;
     private static ProductService instance;
 
-    // 新增：引用InventoryService
     private InventoryService inventoryService;
 
     private ProductService() {
         this.productRepository = new ProductRepository();
-        // 新增：获取InventoryService实例
         this.inventoryService = InventoryService.getInstance();
     }
 
@@ -72,7 +70,6 @@ public class ProductService implements ProductServiceInterface {
             throw new ValidationException("添加商品失败");
         }
 
-        // 关键修改：同时创建对应的库存记录
         try {
             model.entity.Inventory inventory = new model.entity.Inventory(product.getId());
             inventory.setQuantity(product.getStock());
@@ -120,7 +117,6 @@ public class ProductService implements ProductServiceInterface {
             throw new ValidationException("更新商品失败");
         }
 
-        // 关键修改：如果库存有变化，同步更新库存记录
         if (oldStock != newStock) {
             try {
                 // 检查库存记录是否存在
@@ -165,7 +161,6 @@ public class ProductService implements ProductServiceInterface {
             throw new ValidationException("删除商品失败");
         }
 
-        // 关键修复：删除对应的库存记录，而不是设置库存为0
         try {
             inventoryService.deleteInventoryByProductId(productId);
         } catch (Exception e) {
@@ -340,15 +335,15 @@ public class ProductService implements ProductServiceInterface {
     }
 
     /**
-     * 新增方法：获取商品Repository实例
-     * 修复关键：确保所有服务使用同一个Repository实例
+     * 获取商品Repository实例
+     * 确保所有服务使用同一个Repository实例
      */
     public ProductRepository getProductRepository() {
         return productRepository;
     }
 
     /**
-     * 新增方法：设置商品Repository实例
+     *设置商品Repository实例
      */
     public void setProductRepository(ProductRepository productRepository) {
         this.productRepository = productRepository;

@@ -13,13 +13,30 @@ import java.util.List;
  */
 public class ProductService implements ProductServiceInterface {
     private ProductRepository productRepository;
+    private static ProductService instance;
 
-    public ProductService() {
+    // 新增：引用InventoryService
+    private InventoryService inventoryService;
+
+    private ProductService() {
         this.productRepository = new ProductRepository();
+        // 新增：获取InventoryService实例
+        this.inventoryService = InventoryService.getInstance();
+    }
+
+    public static synchronized ProductService getInstance() {
+        if (instance == null) {
+            instance = new ProductService();
+        }
+        return instance;
+    }
+
+    public static void resetInstance() {
+        instance = null;
     }
 
     /**
-     * 添加商品
+     * 添加商品 - 同时创建对应的库存记录
      */
     @Override
     public void addProduct(Product product) throws ValidationException {
@@ -54,10 +71,23 @@ public class ProductService implements ProductServiceInterface {
         if (!success) {
             throw new ValidationException("添加商品失败");
         }
+
+        // 关键修改：同时创建对应的库存记录
+        try {
+            model.entity.Inventory inventory = new model.entity.Inventory(product.getId());
+            inventory.setQuantity(product.getStock());
+            inventory.setMinThreshold(10); // 默认阈值
+            inventory.setMaxCapacity(1000); // 默认容量
+            inventoryService.addInventory(inventory);
+            System.out.println("为商品创建库存记录: " + product.getId() + ", 库存: " + product.getStock());
+        } catch (Exception e) {
+            System.err.println("创建库存记录失败: " + product.getId() + " - " + e.getMessage());
+            // 这里不抛出异常，因为商品已经添加成功
+        }
     }
 
     /**
-     * 更新商品信息
+     * 更新商品信息 - 同步更新库存
      */
     @Override
     public void updateProduct(Product product) throws ValidationException {
@@ -79,15 +109,44 @@ public class ProductService implements ProductServiceInterface {
             throw new ValidationException("商品价格必须大于0");
         }
 
+        // 获取旧的商品信息以获取库存变化
+        Product oldProduct = productRepository.findById(product.getId());
+        int oldStock = oldProduct.getStock();
+        int newStock = product.getStock();
+
         // 更新商品
         boolean success = productRepository.update(product);
         if (!success) {
             throw new ValidationException("更新商品失败");
         }
+
+        // 关键修改：如果库存有变化，同步更新库存记录
+        if (oldStock != newStock) {
+            try {
+                // 检查库存记录是否存在
+                if (inventoryService.inventoryExists(product.getId())) {
+                    // 获取并更新库存记录
+                    model.entity.Inventory inventory = inventoryService.getInventoryByProductId(product.getId());
+                    inventory.setQuantity(newStock);
+                    inventoryService.updateInventory(inventory);
+                    System.out.println("同步更新库存记录: " + product.getId() + ", 新库存: " + newStock);
+                } else {
+                    // 如果库存记录不存在，创建新的
+                    model.entity.Inventory inventory = new model.entity.Inventory(product.getId());
+                    inventory.setQuantity(newStock);
+                    inventory.setMinThreshold(10);
+                    inventory.setMaxCapacity(1000);
+                    inventoryService.addInventory(inventory);
+                    System.out.println("创建新的库存记录: " + product.getId() + ", 库存: " + newStock);
+                }
+            } catch (Exception e) {
+                System.err.println("同步库存记录失败: " + product.getId() + " - " + e.getMessage());
+            }
+        }
     }
 
     /**
-     * 删除商品
+     * 删除商品 - 同时删除对应的库存记录
      */
     @Override
     public void deleteProduct(String productId) throws ValidationException {
@@ -104,6 +163,14 @@ public class ProductService implements ProductServiceInterface {
         boolean success = productRepository.delete(productId);
         if (!success) {
             throw new ValidationException("删除商品失败");
+        }
+
+        // 关键修复：删除对应的库存记录，而不是设置库存为0
+        try {
+            inventoryService.deleteInventoryByProductId(productId);
+        } catch (Exception e) {
+            System.err.println("删除库存记录失败: " + productId + " - " + e.getMessage());
+            // 不抛出异常，商品已经删除成功
         }
     }
 
@@ -261,6 +328,7 @@ public class ProductService implements ProductServiceInterface {
 
         return products;
     }
+
     @Override
     public boolean productExists(String productId) {
         return productRepository.exists(productId);
@@ -271,10 +339,17 @@ public class ProductService implements ProductServiceInterface {
         return productRepository.count();
     }
 
+    /**
+     * 新增方法：获取商品Repository实例
+     * 修复关键：确保所有服务使用同一个Repository实例
+     */
     public ProductRepository getProductRepository() {
         return productRepository;
     }
 
+    /**
+     * 新增方法：设置商品Repository实例
+     */
     public void setProductRepository(ProductRepository productRepository) {
         this.productRepository = productRepository;
     }

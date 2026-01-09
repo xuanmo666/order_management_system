@@ -11,8 +11,9 @@ import java.util.List;
  * 用户业务逻辑服务类
  * 负责用户认证、权限管理等
  */
-public class UserService {
+public class UserService implements UserServiceInterface {
     private UserRepository userRepository;
+    private static UserService instance;
 
     // 权限检查器接口 - 通过接口实现解耦
     public interface PermissionChecker {
@@ -22,8 +23,15 @@ public class UserService {
     // 默认权限检查器实现
     private PermissionChecker permissionChecker = new DefaultPermissionChecker();
 
-    public UserService() {
+    private UserService() {
         this.userRepository = new UserRepository();
+    }
+    // 获取单例实例
+    public static synchronized UserService getInstance() {
+        if (instance == null) {
+            instance = new UserService();
+        }
+        return instance;
     }
 
     // 可以设置自定义的权限检查器
@@ -34,6 +42,7 @@ public class UserService {
     /**
      * 用户登录
      */
+    @Override
     public User login(String username, String password) throws ValidationException {
         if (!ValidationUtil.isNotBlank(username)) {
             throw new ValidationException("用户名不能为空");
@@ -52,8 +61,18 @@ public class UserService {
     }
 
     /**
+     * 用户登出
+     */
+    @Override
+    public boolean logout(String userId) {
+        // 简单实现，实际项目中可能需要清理会话等
+        return true;
+    }
+
+    /**
      * 添加用户
      */
+    @Override
     public void addUser(User user) throws ValidationException {
         validateUser(user);
 
@@ -71,6 +90,7 @@ public class UserService {
     /**
      * 更新用户
      */
+    @Override
     public void updateUser(User user) throws ValidationException {
         validateUser(user);
 
@@ -88,6 +108,7 @@ public class UserService {
     /**
      * 删除用户
      */
+    @Override
     public void deleteUser(String userId) throws ValidationException {
         if (!ValidationUtil.isNotBlank(userId)) {
             throw new ValidationException("用户ID不能为空");
@@ -113,6 +134,7 @@ public class UserService {
     /**
      * 根据ID获取用户
      */
+    @Override
     public User getUserById(String userId) throws ValidationException {
         if (!ValidationUtil.isNotBlank(userId)) {
             throw new ValidationException("用户ID不能为空");
@@ -127,8 +149,17 @@ public class UserService {
     }
 
     /**
+     * 根据用户名获取用户
+     */
+    @Override
+    public User getUserByUsername(String username) {
+        return userRepository.findByUsername(username);
+    }
+
+    /**
      * 获取所有用户
      */
+    @Override
     public List<User> getAllUsers() {
         return userRepository.findAll();
     }
@@ -136,6 +167,7 @@ public class UserService {
     /**
      * 根据角色获取用户
      */
+    @Override
     public List<User> getUsersByRole(String role) {
         return userRepository.findByRole(role);
     }
@@ -143,6 +175,7 @@ public class UserService {
     /**
      * 检查用户权限
      */
+    @Override
     public boolean checkPermission(User user, String resource, String action) {
         if (user == null) {
             return false;
@@ -153,6 +186,7 @@ public class UserService {
     /**
      * 修改密码
      */
+    @Override
     public void changePassword(String userId, String oldPassword, String newPassword)
             throws ValidationException {
         User user = getUserById(userId);
@@ -165,6 +199,50 @@ public class UserService {
         // 设置新密码
         user.setPassword(newPassword);
         updateUser(user);
+    }
+
+    /**
+     * 重置密码
+     */
+    @Override
+    public void resetPassword(String userId, String newPassword) throws ValidationException {
+        User user = getUserById(userId);
+        user.setPassword(newPassword);
+        updateUser(user);
+    }
+
+    /**
+     * 检查是否是管理员
+     */
+    @Override
+    public boolean isAdmin(String userId) throws ValidationException {
+        User user = getUserById(userId);
+        return user.isAdmin();
+    }
+
+    /**
+     * 检查是否是销售员
+     */
+    @Override
+    public boolean isSales(String userId) throws ValidationException {
+        User user = getUserById(userId);
+        return user.isSales();
+    }
+
+    /**
+     * 检查用户是否存在
+     */
+    @Override
+    public boolean userExists(String userId) {
+        return userRepository.exists(userId);
+    }
+
+    /**
+     * 获取用户数量
+     */
+    @Override
+    public int getUserCount() {
+        return userRepository.count();
     }
 
     // 私有方法：验证用户数据

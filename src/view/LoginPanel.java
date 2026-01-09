@@ -1,4 +1,3 @@
-// view/LoginPanel.java
 package view;
 
 import javax.swing.*;

@@ -10,7 +10,7 @@ class ProductTest {
         // Arrange（准备数据）
         Product product = new Product("P001", "测试商品", 99.99, "电子产品");
 
-        // Act & Assert（操作和断言）
+        // Act & Assert
         assertEquals("P001", product.getId());
         assertEquals("测试商品", product.getName());
         assertEquals(99.99, product.getPrice(), 0.001); // 第三个参数是精度

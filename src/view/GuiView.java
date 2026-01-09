@@ -1,4 +1,3 @@
-// view/GuiView.java
 package view;
 
 import javax.swing.*;
@@ -19,7 +18,11 @@ public class GuiView {
     private ProductPanel productPanel; // 商品管理面板
     private OrderPanel orderPanel;     // 订单管理面板
     private InventoryPanel inventoryPanel; // 库存管理面板
-    private UserPanel userPanel; // 用户管理面板
+    private UserPanel userPanel;       // 用户管理面板（可能为null）
+
+    // 主界面组件
+    private JButton logoutButton;      // 退出登录按钮
+
     /**
      * 构造函数 - 初始化界面
      */
@@ -68,10 +71,13 @@ public class GuiView {
      * 注意：这个方法应该由Controller在登录成功后调用
      */
     public void showMainScreen(String username, String role) {
+        // 清空窗口内容
+        mainFrame.getContentPane().removeAll();
+
         // 创建标签页容器
         tabbedPane = new JTabbedPane();
 
-        // 创建各个功能面板
+        // 创建各个功能面板（必须在这里创建，不能延迟）
         productPanel = new ProductPanel();
         orderPanel = new OrderPanel();
         inventoryPanel = new InventoryPanel();
@@ -80,11 +86,16 @@ public class GuiView {
         tabbedPane.addTab("商品管理", productPanel);
         tabbedPane.addTab("订单管理", orderPanel);
         tabbedPane.addTab("库存管理", inventoryPanel);
+
         // 如果是管理员，添加用户管理面板
         if ("admin".equals(role)) {
             userPanel = new UserPanel();
             tabbedPane.addTab("用户管理", userPanel);
+        } else {
+            // 非管理员用户，userPanel保持为null
+            userPanel = null;
         }
+
         // 创建顶部状态栏
         JPanel topPanel = new JPanel();
         topPanel.setLayout(new BorderLayout());
@@ -94,19 +105,27 @@ public class GuiView {
         topPanel.add(userLabel, BorderLayout.WEST);
 
         // 退出按钮
-        JButton logoutBtn = new JButton("退出登录");
-        topPanel.add(logoutBtn, BorderLayout.EAST);
+        logoutButton = new JButton("退出登录");
+        topPanel.add(logoutButton, BorderLayout.EAST);
 
         // 设置主界面布局
-        mainFrame.getContentPane().removeAll();
         mainFrame.setLayout(new BorderLayout());
-
         mainFrame.add(topPanel, BorderLayout.NORTH);
         mainFrame.add(tabbedPane, BorderLayout.CENTER);
 
         // 刷新显示
         mainFrame.revalidate();
         mainFrame.repaint();
+    }
+
+    /**
+     * 设置退出按钮的监听器
+     * 注意：这个方法由Controller在登录成功后调用
+     */
+    public void setLogoutListener(java.awt.event.ActionListener listener) {
+        if (logoutButton != null) {
+            logoutButton.addActionListener(listener);
+        }
     }
 
     /**
@@ -160,15 +179,24 @@ public class GuiView {
     }
 
     /**
+     * 获取用户管理面板（供Controller设置监听器）
+     * 注意：这个方法可能返回null（非管理员用户）
+     */
+    public UserPanel getUserPanel() {
+        return userPanel;
+    }
+
+    /**
      * 获取主窗口对象（供Controller使用）
      */
     public JFrame getMainFrame() {
         return mainFrame;
     }
+
     /**
-     *  获取UserPanel的方法
+     * 获取退出按钮（供Controller使用）
      */
-    public UserPanel getUserPanel() {
-        return userPanel;
+    public JButton getLogoutButton() {
+        return logoutButton;
     }
 }

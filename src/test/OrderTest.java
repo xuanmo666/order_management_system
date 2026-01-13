@@ -8,7 +8,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Order实体类测试
- * 大学生项目简易测试用例
+ * 测试用例
  */
 public class OrderTest {
 

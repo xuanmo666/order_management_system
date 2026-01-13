@@ -4,7 +4,16 @@ import model.entity.Product;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * Order实体类测试
+ * 测试用例
+ */
 class ProductTest {
+
+    /**
+     * 测试1: 成功创建商品实例
+     * 测试基本创建和属性设置
+     */
     @Test
     void testProductCreation() {
         // Arrange（准备数据）
@@ -13,11 +22,14 @@ class ProductTest {
         // Act & Assert
         assertEquals("P001", product.getId());
         assertEquals("测试商品", product.getName());
-        assertEquals(99.99, product.getPrice(), 0.001); // 第三个参数是精度
+        assertEquals(99.99, product.getPrice(), 0.001); // 第三个参数精度
         assertEquals("电子产品", product.getCategory());
         assertEquals(0, product.getStock()); // 初始库存应为0
     }
 
+    /**
+     * 测试2: 成功增加商品数量
+     */
     @Test
     void testIncreaseStock() {
         // Arrange
@@ -30,6 +42,9 @@ class ProductTest {
         assertEquals(10, product.getStock());
     }
 
+    /**
+     * 测试3: 成功减少商品数量
+     */
     @Test
     void testDecreaseStockSuccess() {
         // Arrange
@@ -44,6 +59,9 @@ class ProductTest {
         assertEquals(2, product.getStock());
     }
 
+    /**
+     * 测试3: 商品数量健壮性检测
+     */
     @Test
     void testDecreaseStockFail() {
         // Arrange
@@ -58,6 +76,9 @@ class ProductTest {
         assertEquals(2, product.getStock()); // 库存应不变
     }
 
+    /**
+     * 测试4: 测试toString()返回内容
+     */
     @Test
     void testToString() {
         // Arrange

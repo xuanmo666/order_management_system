@@ -169,7 +169,7 @@ public class ValidationUtil {
      */
     public static boolean isValidUserRole(String role) {
         if (!isNotBlank(role)) return false;
-        return "管理员".equals(role) || "销售员".equals(role) || "客户".equals(role);
+        return "admin".equals(role) || "sales".equals(role);
     }
 
     /**

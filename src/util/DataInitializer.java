@@ -25,7 +25,7 @@ public class DataInitializer {
         UserService userService = UserService.getInstance();
         ProductService productService = ProductService.getInstance();
         InventoryService inventoryService = InventoryService.getInstance();
-        OrderService orderService = OrderService.getInstance(); // 关键修复：确保OrderService已初始化
+        OrderService orderService = OrderService.getInstance();
 
         System.out.println("=== 获取服务实例完成 ===");
         System.out.println("UserService实例: " + userService);

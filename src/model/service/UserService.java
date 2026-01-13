@@ -3,7 +3,7 @@ package model.service;
 import model.entity.User;
 import model.repository.UserRepository;
 import exception.ValidationException;
-import util.ValidationUtil;
+import util.ValidationUtil;  // 导入工具类
 
 import java.util.List;
 
@@ -44,12 +44,18 @@ public class UserService implements UserServiceInterface {
      */
     @Override
     public User login(String username, String password) throws ValidationException {
+        // 使用ValidationUtil验证输入
         if (!ValidationUtil.isNotBlank(username)) {
             throw new ValidationException("用户名不能为空");
         }
 
         if (!ValidationUtil.isNotBlank(password)) {
             throw new ValidationException("密码不能为空");
+        }
+
+        // 验证用户名格式（如果提供了格式验证）
+        if (!ValidationUtil.isValidUsername(username)) {
+            throw new ValidationException("用户名格式无效：必须为3-20位的字母、数字或下划线");
         }
 
         User user = userRepository.validateLogin(username, password);
@@ -169,6 +175,11 @@ public class UserService implements UserServiceInterface {
      */
     @Override
     public List<User> getUsersByRole(String role) {
+        // 验证角色是否有效
+        if (!ValidationUtil.isValidUserRole(role)) {
+            // 如果角色无效，返回空列表或所有用户
+            return new java.util.ArrayList<>();
+        }
         return userRepository.findByRole(role);
     }
 
@@ -196,6 +207,11 @@ public class UserService implements UserServiceInterface {
             throw new ValidationException("旧密码错误");
         }
 
+        // 验证新密码格式
+        if (!ValidationUtil.isValidPassword(newPassword)) {
+            throw new ValidationException("新密码格式无效：必须为6-20位的字母、数字或特殊字符");
+        }
+
         // 设置新密码
         user.setPassword(newPassword);
         updateUser(user);
@@ -206,6 +222,11 @@ public class UserService implements UserServiceInterface {
      */
     @Override
     public void resetPassword(String userId, String newPassword) throws ValidationException {
+        // 验证新密码格式
+        if (!ValidationUtil.isValidPassword(newPassword)) {
+            throw new ValidationException("新密码格式无效：必须为6-20位的字母、数字或特殊字符");
+        }
+
         User user = getUserById(userId);
         user.setPassword(newPassword);
         updateUser(user);
@@ -245,7 +266,7 @@ public class UserService implements UserServiceInterface {
         return userRepository.count();
     }
 
-    // 私有方法：验证用户数据
+    // 私有方法：验证用户数据 - 使用ValidationUtil增强验证
     private void validateUser(User user) throws ValidationException {
         if (user == null) {
             throw new ValidationException("用户不能为空");
@@ -259,17 +280,26 @@ public class UserService implements UserServiceInterface {
             throw new ValidationException("用户名不能为空");
         }
 
+        // 验证用户名格式
+        if (!ValidationUtil.isValidUsername(user.getName())) {
+            throw new ValidationException("用户名格式无效：必须为3-20位的字母、数字或下划线");
+        }
+
         if (!ValidationUtil.isNotBlank(user.getPassword())) {
             throw new ValidationException("密码不能为空");
+        }
+
+        // 验证密码格式
+        if (!ValidationUtil.isValidPassword(user.getPassword())) {
+            throw new ValidationException("密码格式无效：必须为6-20位的字母、数字或特殊字符");
         }
 
         if (!ValidationUtil.isNotBlank(user.getRole())) {
             throw new ValidationException("用户角色不能为空");
         }
 
-        // 验证角色
-        if (!User.ROLE_ADMIN.equals(user.getRole()) &&
-                !User.ROLE_SALES.equals(user.getRole())) {
+        // 验证角色是否合法
+        if (!ValidationUtil.isValidUserRole(user.getRole())) {
             throw new ValidationException("用户角色必须是admin或sales");
         }
     }

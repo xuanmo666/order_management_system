@@ -47,16 +47,42 @@ public class ProductService implements ProductServiceInterface {
             throw new ValidationException("商品ID不能为空");
         }
 
+        // 验证商品ID长度
+        if (!ValidationUtil.isValidLength(product.getId(), 3, 50)) {
+            throw new ValidationException("商品ID长度必须在3-50个字符之间");
+        }
+
         if (!ValidationUtil.isNotBlank(product.getName())) {
             throw new ValidationException("商品名称不能为空");
         }
 
-        if (product.getPrice() <= 0) {
+        // 验证商品名称长度
+        if (!ValidationUtil.isValidLength(product.getName(), 1, 100)) {
+            throw new ValidationException("商品名称长度必须在1-100个字符之间");
+        }
+
+        // 验证价格
+        if (!ValidationUtil.isPositiveNumber(product.getPrice())) {
             throw new ValidationException("商品价格必须大于0");
+        }
+
+        // 验证价格格式
+        if (!ValidationUtil.isValidPrice(product.getPrice())) {
+            throw new ValidationException("商品价格格式无效：最多只能有两位小数");
         }
 
         if (!ValidationUtil.isNotBlank(product.getCategory())) {
             throw new ValidationException("商品分类不能为空");
+        }
+
+        // 验证商品分类长度
+        if (!ValidationUtil.isValidLength(product.getCategory(), 1, 50)) {
+            throw new ValidationException("商品分类长度必须在1-50个字符之间");
+        }
+
+        // 验证库存数量
+        if (!ValidationUtil.isNonNegativeNumber(product.getStock())) {
+            throw new ValidationException("商品库存不能为负数");
         }
 
         // 检查商品是否已存在
@@ -102,8 +128,34 @@ public class ProductService implements ProductServiceInterface {
             throw new ValidationException("商品名称不能为空");
         }
 
-        if (product.getPrice() <= 0) {
+        // 验证商品名称长度
+        if (!ValidationUtil.isValidLength(product.getName(), 1, 100)) {
+            throw new ValidationException("商品名称长度必须在1-100个字符之间");
+        }
+
+        // 验证价格
+        if (!ValidationUtil.isPositiveNumber(product.getPrice())) {
             throw new ValidationException("商品价格必须大于0");
+        }
+
+        // 验证价格格式
+        if (!ValidationUtil.isValidPrice(product.getPrice())) {
+            throw new ValidationException("商品价格格式无效：最多只能有两位小数");
+        }
+
+        // 验证商品分类
+        if (!ValidationUtil.isNotBlank(product.getCategory())) {
+            throw new ValidationException("商品分类不能为空");
+        }
+
+        // 验证商品分类长度
+        if (!ValidationUtil.isValidLength(product.getCategory(), 1, 50)) {
+            throw new ValidationException("商品分类长度必须在1-50个字符之间");
+        }
+
+        // 验证库存数量
+        if (!ValidationUtil.isNonNegativeNumber(product.getStock())) {
+            throw new ValidationException("商品库存不能为负数");
         }
 
         // 获取旧的商品信息以获取库存变化
@@ -202,6 +254,22 @@ public class ProductService implements ProductServiceInterface {
                                         Double minPrice, Double maxPrice) {
         List<Product> result = productRepository.findAll();
 
+        // 验证价格范围
+        if (minPrice != null && !ValidationUtil.isNonNegativeNumber(minPrice)) {
+            minPrice = null; // 忽略无效的最小价格
+        }
+
+        if (maxPrice != null && !ValidationUtil.isNonNegativeNumber(maxPrice)) {
+            maxPrice = null; // 忽略无效的最大价格
+        }
+
+        if (minPrice != null && maxPrice != null && minPrice > maxPrice) {
+            // 交换最小和最大价格
+            Double temp = minPrice;
+            minPrice = maxPrice;
+            maxPrice = temp;
+        }
+
         // 使用流式API进行筛选（简单实现）
         java.util.Iterator<Product> iterator = result.iterator();
         while (iterator.hasNext()) {
@@ -243,12 +311,12 @@ public class ProductService implements ProductServiceInterface {
      */
     @Override
     public void stockIn(String productId, int amount) throws ValidationException {
-        Product product = getProductById(productId);
-
-        if (amount <= 0) {
+        // 验证数量
+        if (!ValidationUtil.isPositiveNumber(amount)) {
             throw new ValidationException("入库数量必须大于0");
         }
 
+        Product product = getProductById(productId);
         product.increaseStock(amount);
         productRepository.update(product);
     }
@@ -258,11 +326,12 @@ public class ProductService implements ProductServiceInterface {
      */
     @Override
     public boolean stockOut(String productId, int amount) throws ValidationException {
-        Product product = getProductById(productId);
-
-        if (amount <= 0) {
+        // 验证数量
+        if (!ValidationUtil.isPositiveNumber(amount)) {
             throw new ValidationException("出库数量必须大于0");
         }
+
+        Product product = getProductById(productId);
 
         if (product.getStock() < amount) {
             return false; // 库存不足
@@ -294,6 +363,10 @@ public class ProductService implements ProductServiceInterface {
      */
     @Override
     public List<Product> getLowStockProducts(int threshold) {
+        // 验证阈值
+        if (!ValidationUtil.isNonNegativeNumber(threshold)) {
+            threshold = 0; // 使用默认值
+        }
         return productRepository.getLowStockProducts(threshold);
     }
 

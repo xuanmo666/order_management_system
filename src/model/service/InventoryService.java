@@ -5,6 +5,7 @@ import model.entity.Product;
 import model.repository.InventoryRepository;
 import exception.ValidationException;
 import exception.BusinessException;
+import util.ValidationUtil;
 
 import java.util.List;
 import java.util.Map;
@@ -33,8 +34,18 @@ public class InventoryService implements InventoryServiceInterface {
     @Override
     public void adjustInventory(String productId, int amount, String operation)
             throws ValidationException, BusinessException {
-        if (!util.ValidationUtil.isNotBlank(productId)) {
+        if (!ValidationUtil.isNotBlank(productId)) {
             throw new ValidationException("商品ID不能为空");
+        }
+
+        // 验证商品ID长度
+        if (!ValidationUtil.isValidLength(productId, 3, 50)) {
+            throw new ValidationException("商品ID长度必须在3-50个字符之间");
+        }
+
+        // 验证数量
+        if (!ValidationUtil.isPositiveNumber(amount)) {
+            throw new ValidationException("调整数量必须大于0");
         }
 
         Inventory inventory = inventoryRepository.findById(productId);
@@ -46,8 +57,17 @@ public class InventoryService implements InventoryServiceInterface {
         int oldQuantity = inventory.getQuantity();
 
         if ("in".equalsIgnoreCase(operation) || "increase".equalsIgnoreCase(operation)) {
+            // 验证入库数量是否超出容量
+            if (inventory.isOverCapacity(amount)) {
+                throw new ValidationException("超出最大库存容量: 当前" + inventory.getQuantity() +
+                        "，最大" + inventory.getMaxCapacity() + "，入库" + amount);
+            }
             inventory.increase(amount);
         } else if ("out".equalsIgnoreCase(operation) || "decrease".equalsIgnoreCase(operation)) {
+            // 验证出库数量是否充足
+            if (!ValidationUtil.isNonNegativeNumber(inventory.getQuantity() - amount)) {
+                throw new BusinessException("库存不足: 当前" + inventory.getQuantity() + "，需要" + amount);
+            }
             inventory.decrease(amount);
         } else {
             throw new ValidationException("不支持的操作类型: " + operation);
@@ -84,7 +104,7 @@ public class InventoryService implements InventoryServiceInterface {
      * 删除库存记录 - 新增方法
      */
     public void deleteInventory(String productId) throws ValidationException {
-        if (!util.ValidationUtil.isNotBlank(productId)) {
+        if (!ValidationUtil.isNotBlank(productId)) {
             throw new ValidationException("商品ID不能为空");
         }
 
@@ -104,7 +124,7 @@ public class InventoryService implements InventoryServiceInterface {
      * 删除与商品相关的库存记录 - 新增方法
      */
     public void deleteInventoryByProductId(String productId) {
-        if (!util.ValidationUtil.isNotBlank(productId)) {
+        if (!ValidationUtil.isNotBlank(productId)) {
             return;
         }
 
@@ -149,7 +169,7 @@ public class InventoryService implements InventoryServiceInterface {
      */
     @Override
     public Inventory getInventoryByProductId(String productId) throws ValidationException {
-        if (!util.ValidationUtil.isNotBlank(productId)) {
+        if (!ValidationUtil.isNotBlank(productId)) {
             throw new ValidationException("商品ID不能为空");
         }
 
@@ -212,30 +232,47 @@ public class InventoryService implements InventoryServiceInterface {
         return inventoryList;
     }
 
-    // 私有方法：验证库存数据
+    // 私有方法：验证库存数据 - 使用ValidationUtil增强验证
     private void validateInventory(Inventory inventory) throws ValidationException {
         if (inventory == null) {
             throw new ValidationException("库存不能为空");
         }
 
-        if (!util.ValidationUtil.isNotBlank(inventory.getProductId())) {
+        if (!ValidationUtil.isNotBlank(inventory.getProductId())) {
             throw new ValidationException("商品ID不能为空");
         }
 
-        if (inventory.getQuantity() < 0) {
+        // 验证商品ID长度
+        if (!ValidationUtil.isValidLength(inventory.getProductId(), 3, 50)) {
+            throw new ValidationException("商品ID长度必须在3-50个字符之间");
+        }
+
+        // 验证库存数量
+        if (!ValidationUtil.isNonNegativeNumber(inventory.getQuantity())) {
             throw new ValidationException("库存数量不能为负数");
         }
 
-        if (inventory.getMinThreshold() < 0) {
+        if (!ValidationUtil.isNonNegativeNumber(inventory.getMinThreshold())) {
             throw new ValidationException("最小库存阈值不能为负数");
+        }
+
+        if (!ValidationUtil.isPositiveNumber(inventory.getMaxCapacity())) {
+            throw new ValidationException("最大库存容量必须大于0");
         }
 
         if (inventory.getMaxCapacity() <= inventory.getMinThreshold()) {
             throw new ValidationException("最大库存容量必须大于最小阈值");
         }
 
+        // 验证库存数量是否超过容量
         if (inventory.getQuantity() > inventory.getMaxCapacity()) {
             throw new ValidationException("库存数量不能超过最大容量");
+        }
+
+        // 验证库存数量是否在合理范围内
+        if (!ValidationUtil.isValidInventory(inventory.getQuantity(),
+                inventory.getMinThreshold(), inventory.getMaxCapacity())) {
+            throw new ValidationException("库存数量不在有效范围内");
         }
     }
 
@@ -251,6 +288,12 @@ public class InventoryService implements InventoryServiceInterface {
             // 获取商品
             Product product = productService.getProductById(productId);
             if (product != null) {
+                // 验证新库存数量
+                if (!ValidationUtil.isNonNegativeNumber(newQuantity)) {
+                    System.err.println("同步失败: 库存数量无效 - " + newQuantity);
+                    return;
+                }
+
                 // 更新商品库存
                 product.setStock(newQuantity);
                 // 使用ProductService更新商品，确保使用相同的Repository

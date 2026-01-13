@@ -50,6 +50,11 @@ public class OrderService implements OrderServiceInterface {
             String productId = item.getProductId();
             int quantity = item.getQuantity();
 
+            // 验证商品数量
+            if (!ValidationUtil.isPositiveNumber(quantity)) {
+                throw new ValidationException("商品数量必须大于0: " + productId);
+            }
+
             // 获取商品信息
             Product product = productRepository.findById(productId);
             if (product == null) {
@@ -60,6 +65,15 @@ public class OrderService implements OrderServiceInterface {
             if (product.getStock() < quantity) {
                 throw new BusinessException("商品库存不足: " + product.getName() +
                         "，需要" + quantity + "，库存" + product.getStock());
+            }
+
+            // 验证订单项价格
+            if (!ValidationUtil.isPositiveNumber(item.getPrice())) {
+                throw new ValidationException("商品价格必须大于0: " + product.getName());
+            }
+
+            if (!ValidationUtil.isValidPrice(item.getPrice())) {
+                throw new ValidationException("商品价格格式无效: " + product.getName());
             }
 
             // 扣减商品库存
@@ -79,6 +93,11 @@ public class OrderService implements OrderServiceInterface {
 
         // 计算订单总金额
         order.calculateTotalAmount();
+
+        // 验证订单总金额
+        if (!ValidationUtil.isPositiveNumber(order.getTotalAmount())) {
+            throw new ValidationException("订单总金额必须大于0");
+        }
 
         // 更新客户消费总额
         if (order.getCustomer() != null) {
@@ -111,6 +130,11 @@ public class OrderService implements OrderServiceInterface {
         Order order = orderRepository.findById(orderId);
         if (order == null) {
             throw new ValidationException("订单不存在: " + orderId);
+        }
+
+        // 验证状态流转是否合法
+        if (!ValidationUtil.isValidStatusTransition(order.getStatus(), newStatus)) {
+            throw new BusinessException("订单状态流转非法: 从" + order.getStatus() + "到" + newStatus);
         }
 
         // 使用订单实体的状态流转方法
@@ -190,6 +214,10 @@ public class OrderService implements OrderServiceInterface {
      */
     @Override
     public List<Order> getOrdersByCustomer(String customerId) {
+        // 验证客户ID
+        if (!ValidationUtil.isNotBlank(customerId)) {
+            return new java.util.ArrayList<>();
+        }
         return orderRepository.findByCustomerId(customerId);
     }
 
@@ -198,6 +226,10 @@ public class OrderService implements OrderServiceInterface {
      */
     @Override
     public List<Order> getOrdersByStatus(String status) {
+        // 验证状态
+        if (!ValidationUtil.isNotBlank(status)) {
+            return new java.util.ArrayList<>();
+        }
         return orderRepository.findByStatus(status);
     }
 
@@ -262,6 +294,11 @@ public class OrderService implements OrderServiceInterface {
      */
     @Override
     public java.util.List<model.entity.Product> getHotProducts(int limit) {
+        // 验证限制数量
+        if (!ValidationUtil.isPositiveNumber(limit)) {
+            limit = 10; // 默认值
+        }
+
         // 统计每个商品的销售数量
         java.util.Map<String, Integer> salesCount = new java.util.HashMap<>();
         for (Order order : orderRepository.findAll()) {
@@ -305,7 +342,7 @@ public class OrderService implements OrderServiceInterface {
         return hotProducts;
     }
 
-    // 私有方法：验证订单数据
+    // 私有方法：验证订单数据 - 使用ValidationUtil增强验证
     private void validateOrder(Order order) throws ValidationException {
         if (order == null) {
             throw new ValidationException("订单不能为空");
@@ -315,12 +352,37 @@ public class OrderService implements OrderServiceInterface {
             throw new ValidationException("订单ID不能为空");
         }
 
+        // 验证订单ID长度
+        if (!ValidationUtil.isValidLength(order.getOrderId(), 3, 50)) {
+            throw new ValidationException("订单ID长度必须在3-50个字符之间");
+        }
+
         if (order.getCustomer() == null) {
             throw new ValidationException("订单必须关联客户");
         }
 
+        // 验证客户信息
+        if (!ValidationUtil.isNotBlank(order.getCustomer().getId())) {
+            throw new ValidationException("客户ID不能为空");
+        }
+
+        if (!ValidationUtil.isNotBlank(order.getCustomer().getName())) {
+            throw new ValidationException("客户姓名不能为空");
+        }
+
         if (order.getItems() == null || order.getItems().isEmpty()) {
             throw new ValidationException("订单必须包含商品");
+        }
+
+        // 验证每个订单项
+        for (OrderItem item : order.getItems()) {
+            if (!ValidationUtil.isNotBlank(item.getProductId())) {
+                throw new ValidationException("商品ID不能为空");
+            }
+
+            if (!ValidationUtil.isPositiveNumber(item.getQuantity())) {
+                throw new ValidationException("商品数量必须大于0");
+            }
         }
 
         // 检查订单是否已存在
